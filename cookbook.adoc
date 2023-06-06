@@ -1,0 +1,70 @@
+= Fulcro Cookbook
+:kroki-fetch-diagram:
+:eql: https://edn-query-language.org/eql/1.0.0/specification.html
+:fbook: https://book.fulcrologic.com/
+
+== Introduction
+
+This book demonstrates how to use the tools Fulcro offers to solve various real-life problems, with realistic examples.
+
+WARNING: This is just a very early draft
+
+=== Content proposal
+
+The book is structured into sections focused on a particular problem / tool.
+
+Sections:
+
+. Pushing side-effects to the transaction subsystem and remotes
+. Repeating elements and recursive queries
+. ...
+
+TIP: What other sections should there be? Perhaps something about union queries, ...?
+
+Example ideas
+
+. SortableList
+. leverage the statecharts in the cookbook - perhaps a simplified sign-up/login/resume session example
+
+:sectnums:
+:sectnumlevels: 2
+== Pushing side-effects to the transaction subsystem and remotes
+
+=== Introduction
+
+In Fulcro, we want rendering to be as pure a function of data as possible. Yet, any application needs to perform side-effects to be useful. Fulcro's answer to that are *mutations*, which are submitted to the transaction subsystem and executed asynchronously by a _remote_. The remote essentially everybody is using is Pathom, whether running on the server-side or in the browser itself, as an adapter for remote REST APIs. But it doesn't need to be the only remote. If you need to talk to an endpoint directly, use the browser's local storage or https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API[IndexedDB], or to offload an expensive computation to a WebWorker, a custom remote - which is just a simple function - is your solution.
+
+Remotes and the transaction subsystem provide good functionality out of the box:
+
+. Responses can be automatically normalized and merged into the client DB (see `m/returning` & friends)
+. Possibility to cancel running requests (as long as the remote supports it)
+. Error handling
+. Status tracking (loading/failed/success)
+. Progress tracking (as long as the remote supports it)
+
+link:{fbook}#_writing_your_own_remote_implementation[Writing your own remote implementation] is simple - it is just a map that contains a `:transmit!` key whose value is a `(fn [remote send-node] )`. You'd like need to write a tiny adapter layer to process the `...tx-processing/ast`, which is the parsed EQL query, and to return an appropriate tree of data.
+
+=== Recipes
+
+==== WebWorkerRemote: Offloading an expensive calculation to a WebWorker
+
+TODO
+
+
+== Repeating elements and recursive queries
+
+=== Introduction
+
+Sometimes we run into recursive use cases, where a component contains itself, for example when representing a file system, where folders can contain other folders. A more troublesome case is when we have multiple components that mutually include each other.
+
+You have essentially three ways to approach this problem:
+
+(1) Simplify your UI so that you have a single component including itself. Then you can use EQL's bound or unbound link:{eql}#_recursive_queries[Recursive Queries] with a join on itself, represented by a number for the desired number or levels or the symbol `...`. Ex.: `[{:folder/subfolders '...}]` (or, if you want to only load e.g. a single level at a time, `[{:folder/subfolders 1}]`).
+
+(2) "Unroll" the recursion by defining a unique component for each level, such as Folder1, Folder2, Folder3 and leveraging the power of Clojure to avoid code duplication.
+
+(3) An ad-hoc solution for a rare case (see e.g. the <<#dynamic-recursion>> recipe)
+
+=== Recipes
+
+include::./dynamic-recursion/dynamic-recursion.adoc[]

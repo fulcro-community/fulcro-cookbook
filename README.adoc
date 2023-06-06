@@ -2,104 +2,16 @@
 :eql: https://edn-query-language.org/eql/1.0.0/specification.html
 :fbook: https://book.fulcrologic.com/
 
-== Introduction
-
 This book demonstrates how to use the tools Fulcro offers to solve various real-life problems, with realistic examples.
 
-WARNING: This is just a very early draft
+See link:/fulcro-community/fulcro-cookbook/blob/main/cookbook.adoc[cookbook.adoc for the actual content].
 
-=== Content proposal
+== Contributing
 
-The book is structured into sections focused on a particular problem / tool.
+See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for details.
 
-Sections:
+== Writing tips
 
-. Pushing side-effects to the transaction subsystem and remotes
-. Repeating elements and recursive queries
-. ...
+Use VS Code with asciidoctor plugin and link:https://github.com/asciidoctor/asciidoctor-vscode#diagram-integration[Kroki enabled] (`asciidoc.extensions.enableKroki: true`)
 
-TIP: What other sections should there be? Perhaps something about union queries, ...?
-
-Example ideas
-
-. SortableList
-. leverage the statecharts in the cookbook - perhaps a simplified sign-up/login/resume session example
-
-:sectnums:
-:sectnumlevels: 2
-== Pushing side-effects to the transaction subsystem and remotes
-
-=== Introduction
-
-In Fulcro, we want rendering to be as pure a function of data as possible. Yet, any application needs to perform side-effects to be useful. Fulcro's answer to that are *mutations*, which are submitted to the transaction subsystem and executed asynchronously by a _remote_. The remote essentially everybody is using is Pathom, whether running on the server-side or in the browser itself, as an adapter for remote REST APIs. But it doesn't need to be the only remote. If you need to talk to an endpoint directly, use the browser's local storage or https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API[IndexedDB], or to offload an expensive computation to a WebWorker, a custom remote - which is just a simple function - is your solution.
-
-Remotes and the transaction subsystem provide good functionality out of the box:
-
-. Responses can be automatically normalized and merged into the client DB (see `m/returning` & friends)
-. Possibility to cancel running requests (as long as the remote supports it)
-. Error handling
-. Status tracking (loading/failed/success)
-. Progress tracking (as long as the remote supports it)
-
-link:{fbook}#_writing_your_own_remote_implementation[Writing your own remote implementation] is simple - it is just a map that contains a `:transmit!` key whose value is a `(fn [remote send-node] )`. You'd like need to write a tiny adapter layer to process the `...tx-processing/ast`, which is the parsed EQL query, and to return an appropriate tree of data.
-
-=== Recipes
-
-==== WebWorkerRemote: Offloading an expensive calculation to a WebWorker
-
-TODO
-
-
-== Repeating elements and recursive queries
-
-=== Introduction
-
-Sometimes we run into recursive use cases, where a component contains itself, for example when representing a file system, where folders can contain other folders. A more troublesome case is when we have multiple components that mutually include each other.
-
-You have essentially three ways to approach this problem:
-
-(1) Simplify your UI so that you have a single component including itself. Then you can use EQL's bound or unbound link:{eql}#_recursive_queries[Recursive Queries] with a join on itself, represented by a number for the desired number or levels or the symbol `...`. Ex.: `[{:folder/subfolders '...}]` (or, if you want to only load e.g. a single level at a time, `[{:folder/subfolders 1}]`).
-
-(2) "Unroll" the recursion by defining a unique component for each level, such as Folder1, Folder2, Folder3 and leveraging the power of Clojure to avoid code duplication.
-
-(3) An ad-hoc solution for a rare case (see e.g. the <<#dynamic-recursion>> recipe)
-
-=== Recipes
-
-[#dynamic-recursion]
-==== Solving mutually recursive elements with lazy loading with hooks and dynamic components
-
-Some cases are just too complex to solve with recursive queries. In this case we have a Recipe that has a list of "line items," each with a quantity and unit of measure (`uom`), where the item can be either a raw ingredient or another recipe. So the recursion here is across two elements: Recipe → line item → Recipe. Moreover, we only want to load the details of sub-recipes on demand.
-
-This is what the data looks like:
-
-* Recipe 1: "Pancakes"
-** Line item 1: quantity 1, uom :litre
-*** Ingredient: "Milk"
-** Line item 2: quantity 2, uom :piece
-*** Ingredient: "Egg"
-** Line item 3: quantity 0.3, uom :litre
-*** Recipe: "Home-made yoghurt"
-**** Line item 1: quantity 1, uom :litre
-***** Ingredient: "Milk"
-...
-
-This mutual recursion is difficult, if not impossible, to do with just queries.
-
-
-TIP: We could still solve it with recursive queries, if we separate sub-recipes and the information about quantities. So a Recipe would have data such as `#:recipe{:ingredient-line-items [{:quantity 2, :uom :teaspoon :ingredient {:id ".." :name "Salt"}},...], :sub-recipes [#:recipe{:id "rec2", ...}] :sub-recipe-quantities {"rec2" {:quanity 0.1, :uom :litre}, ..}}` and query `[:recipe/ingredient-line-items (get-query IngredientLineItem) {:recipe/sub-recipes 1} :recipe/sub-recipe-quantities]`. It works but it is not elegant. Therefore we explore a different solution here, which enables us to do exactly what we want.
-
-This is a perfect use case for dynamic components and hooks, namely `use-component`.
-
-What we will do is to load a Recipe that has a RecipeLineItem that _refers_ to a Recipe (just the ID and name, avoiding the problematic recursive items). We then swap out the reference for a dynamically loaded entity when the user wants to see the details of the sub-recipe. We also use a union query for the RecipeLineItem's child, though it is not strictly necessary (it could simply query for both and always get just one of them).
-
-There is a slight complication with the on-demand loading of the sub-recipe because the use-component hook is slightly tricky to use with something that hasn’t been loaded yet, since it needs some data to exist in the client DB. We will therefore initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook can then make an “empty” but properly identified placeholder in the database to hook up to while the load runs. I.e. `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive you’ve got the full recipe.
-
-.dynamic-recursion-cards
-====
-//include::https://raw.githubusercontent.com/fulcrologic/fulcro/c6c490b6e4a5461628bd940a5c6b067ee002775a/src/workspaces/com/fulcrologic/fulcro/cards/dynamic_recursion_cards.cljs[]
-[source,clojure]
-----
-include::./dynamic_recursion_cards.cljs[]
-----
-====
+Have a look at https://gist.github.com/dcode/0cfbf2699a1fe9b46ff04c41721dda74
