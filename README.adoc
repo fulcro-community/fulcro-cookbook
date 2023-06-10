@@ -14,4 +14,10 @@ See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for details.
 
 Use VS Code with asciidoctor plugin with link:https://github.com/asciidoctor/asciidoctor-vscode#diagram-integration[Kroki enabled] (`asciidoc.extensions.enableKroki: true`, already enabled for this workspace).
 
+Images and wireframes - use e.g. https://excalidraw.com/
+
 Have a look at https://gist.github.com/dcode/0cfbf2699a1fe9b46ff04c41721dda74
+
+=== Problems and limitations
+
+* VS Code preview of included SVG images requires Light Mode to work well, as they are almost invisible in the dark mode.

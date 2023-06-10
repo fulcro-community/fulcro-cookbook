@@ -1,4 +1,38 @@
 [#dynamic-recursion]
+=== Solving mutually recursive elements with lazy loading with hooks and dynamic components
+:imagesdir: ./dynamic-recursion
+ifdef::env-vscode[]
+:imagesdir: .
+endif::[]
+
+How do we model our UI and get our data, when we have two mutually recursive elements? Here we want to display Recipes composed of LineItems with a quantity, unit of measure (uom), and either an ingredient or a sub-recipe: 
+
+.The desired UI
+image::./recipes-ui.svg["UI wireframes",35%,opts=inline]
+
+.The data model in our SQL database
+ifdef::env-github[image::data-model.png[Data model]]
+ifndef::env-github[]
+[plantuml,data-model,png]
+.... 
+@startuml
+entity Recipe {
+  id : string
+  name : string
+  line-items : [LineItem]
+}
+entity LineItem {
+  id : string
+  quantity : number
+  uom : litre|piece|teaspoon|...
+  ingredient : Ingredient
+  sub-recipe : Recipe
+}
+Recipe "1" *- "+" LineItem
+LineItem o- "0..1" Recipe
+@enduml
+....
+
 
 ==== The goal
 
@@ -25,29 +59,14 @@ You have recipes that are multiple layers deep. At each layer, you might have an
 
 In addition, the connection between the child and parent holds the element's qty and other pertinent information (e.g., the unit of measure `uom`).
 
-.Data model
-ifdef::env-github[image::data-model.png[Data model]]
-ifndef::env-github[]
-[plantuml,data-model,png]
-.... 
-@startuml
-entity Recipe {
-  id : string
-  name : string
-  line-items : [LineItem]
-}
-entity LineItem {
-  id : string
-  quantity : number
-  uom : litre|piece|teaspoon|...
-  ingredient : Ingredient
-  sub-recipe : Recipe
-}
-Recipe "1" *- "+" LineItem
-LineItem o- "0..1" Recipe
-@enduml
-....
+Some cases are just too complex to solve with recursive queries. In this case we have a Recipe that has a list of "line items," each with a quantity and unit of measure (`uom`), where the item can be either a raw ingredient or another recipe. So the recursion here is across two elements: Recipe → line item → Recipe. Moreover, we only want to load the details of sub-recipes on demand.
 
+===== Setting the scene
+
+TODO: data model (graph/tree), ? side-by-side of data tree and rendering tree (comp. instances), how comp queries mimic data model shape
+TODO How side-effect (load/mutation/progress/web socket push, etc.) populates some portion of that tree, via a remote or data merge with a query fragment.
+
+This is what the data looks like:
 
 Here's what this looks like in a sample pancake recipe.
 .Recipe structure
