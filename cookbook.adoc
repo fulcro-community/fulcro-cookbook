@@ -1,4 +1,5 @@
 = Fulcro Cookbook
+:stylesheet: cookbook.css
 :kroki-fetch-diagram:
 :eql: https://edn-query-language.org/eql/1.0.0/specification.html
 :fbook: https://book.fulcrologic.com/
