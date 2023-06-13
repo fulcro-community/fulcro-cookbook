@@ -11,15 +11,7 @@ For example.
 . A tree of comments. 
 . A recipe that contains other recipes.
 
-==== The common solution
-
-The standard solution is to use a https://edn-query-language.org/eql/1.0.0/specification.html#_recursive_queries[recursive queries in EQL] that loads the entire tree. The EQL solution is the most straightforward and covers 95% of all cases.
-
-==== Edge cases
-
-Some cases are just too complex to solve with recursive queries. Let's take the case of a food manufacturer with a slightly more complicated recipe data model. The EQL recursive query solution requires that the same key be present at each level of traversal, i.e. we have a single element that may contain itself. We'll see how this becomes an issue in certain scenarios.
-
-==== The problem
+==== The concrete problem
 
 You have recipes that are multiple layers deep. At each layer, you might have an ingredient or sub-recipe. This nesting can go on arbitrarily. Think pizza with sauce -> the sauce has sub-components. Sub-components, in turn, might have final ingredients (salt, oil, pepper).
 
@@ -28,7 +20,6 @@ In addition, the connection between the child and parent holds the element's qty
 In this particular case, we also want to lazyload the sub-recipes so we don't load the entire tree up front. That further complicates the usage of EQL recursive queries (though they do support setting a depth limit).
 
 Let's look at the UI we want and the data we have:
-
 
 .The desired UI
 image::./recipes-ui.svg["UI wireframes",35%,opts=inline]
@@ -82,12 +73,46 @@ LineItem o- "0..1" Recipe
       :r.l.i/ingredient {:ingredient/name "Yogurt Starter", :ingredient/id 104}}]}}]}
 ----
 
+==== Exploring possible solutions
 
-===== **TODO:** Discuss possible solutions
+The standard solution is to use a https://edn-query-language.org/eql/1.0.0/specification.html#_recursive_queries[recursive queries in EQL] that loads the entire tree. The EQL solution is the most straightforward and covers 95% of all cases.
 
-**TODO**
+However, some cases are just too complex to solve with recursive queries. The EQL recursive query solution requires that the same key be present at each level of traversal, i.e. we have a single element that may contain itself. That is not the case here, where we have Recipe containing LineItem, containing Recipe... .
+
+===== Option A: Flatten the data to get a self-recursive element
+
+We could change our data so that a recipe contains directly sub-recipes, for example by splitting the quantity and uom data and the sub-recipes:
+
+[source,clojure]
+----
+{:recipe/id 1
+ :recipe/name "Pancake Batter"
+ :recipe/line-items [{:r.l.i/qty 4
+                      :r.l.i/uom "piece"
+                      :r.l.i/ingredient {:ingredient/name "Eggs", :ingredient/id 101}}
+                     {:r.l.i/qty 0.5
+                      :r.l.i/uom "litre"
+                      :r.l.i/sub-recipe [:recipe/id 2]}]
+ :recipe/sub-recipes [{:recipe/id 2
+                       :recipe/name "Yogurt"
+                       :recipe/line-items [..]}]}
+----
+
+Then inside the component you would join the two pieces of data together.
+
+It might not be elegant, but it gets the job done.
+
+===== Option B: Use a dynamic, hook-based component to load the sub-recipe
+
+Our secondary requirement is lazy loading of sub-recipes. We can solve both problems by using a dynamic component, i.e. one that is not part of the query tree but gets its data independently, via the `use-component` hook.
+
+What we will do is load a Recipe that has a RecipeLineItem that _refers_ to a Recipe (just the ID and name, avoiding the problematic recursive items). We then swap out the reference for a dynamically loaded entity when the user wants to see the details of the sub-recipe. We also use a union query for the RecipeLineItem's child, though it is not strictly necessary (it could simply query for both and always get just one of them).
+
+There is a slight complication with the on-demand loading of the sub-recipe because the use-component hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. We will therefore initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook can then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
 
 ===== The solution
+
+We will adopt solution B, using a dynamic hooks component.
 
 Below we can see what the component instances look like, for a recipe with two line items, one of which is a sub-recipe: 
 
@@ -116,107 +141,7 @@ image::./render-tree+data.svg["Render tree <=> data"]
 
 ===== WIP
 
-TODO: side-by-side of data tree and rendering tree (comp. instances), how comp queries mimic data model shape
-TODO How side-effect (load/mutation/progress/web socket push, etc.) populates some portion of that tree, via a remote or data merge with a query fragment.
-
-This is what the data looks like:
-
-Here's what this looks like in a sample pancake recipe.
-
-.Recipe structure
-ifdef::env-github[image::recipe-tree.png[Data model]]
-ifndef::env-github[]
-[plantuml,recipe-tree,png]
-....
-@startuml
-
-class "Recipe" as R_Pancake {
-  name: "Pancakes"
-  line-items: [Pancake-Batter]
-}
-
-class "LineItem" as LI_R_Pancake_R_Pancake_Batter {
-  qty: 50
-  uom: gram
-  sub-recipe: Pancake-Batter
-}
-
-class "Recipe" as R_Pancake_Batter {
-  name: "Pancake Batter"
-  line-items: [Egg, Flour, Yogurt]
-}
-
-class "LineItem" as LI_R_Pancake_Batter_Egg {
-  qty: 4
-  uom: piece
-  ingredient: Egg
-}
-
-class "LineItem" as LI_R_Pancake_Batter_Flour {
-  qty: 0.25
-  uom: kilo
-  ingredient: Flour
-}
-
-class "LineItem" as LI_R_Pancake_Batter_Yogurt {
-  qty: 0.5
-  uom: litre
-  sub-recipe: Yogurt
-}
-
-class "Ingredient" as I_Egg {
-  name: "Eggs"
-}
-
-class "Ingredient" as I_Flour {
-  name: "Flour"
-}
-
-class "Recipe" as R_Yogurt {
-  name: "Home-made Yogurt"
-  line-items: [Milk, Yogurt-Starter]
-}
-
-class "LineItem" as LI_R_Yogurt_Milk {
-  qty: 1
-  uom: litre
-  ingredient: Milk
-}
-
-class "LineItem" as LI_R_Yogurt_I_Yogurt_Starter {
-  qty: 10
-  uom: gram
-  ingredient: Yogurt-Starter
-}
-
-class "Ingredient" as I_Milk {
-  name: "Milk"
-}
-
-class "Ingredient" as I_Yogurt_Starter {
-  name: "Yogurt Starter"
-}
-
-R_Pancake -- LI_R_Pancake_R_Pancake_Batter
-LI_R_Pancake_Batter_Egg -- I_Egg
-LI_R_Pancake_Batter_Flour -- I_Flour
-
-R_Pancake_Batter -- LI_R_Pancake_Batter_Egg
-R_Pancake_Batter -- LI_R_Pancake_Batter_Flour
-R_Pancake_Batter -- LI_R_Pancake_Batter_Yogurt
-
-LI_R_Pancake_R_Pancake_Batter -- R_Pancake_Batter
-
-LI_R_Pancake_Batter_Yogurt -- R_Yogurt
-R_Yogurt -- LI_R_Yogurt_Milk
-
-R_Yogurt -- LI_R_Yogurt_I_Yogurt_Starter
-
-LI_R_Yogurt_Milk -- I_Milk
-LI_R_Yogurt_I_Yogurt_Starter -- I_Yogurt_Starter
-
-@enduml
-....
+TODO: Illustrate how side-effect (load/mutation/progress/web socket push, etc.) populates some portion of that tree, via a remote or data merge with a query fragment.
 
 
 ===== Insights
@@ -260,17 +185,7 @@ Remember the ident function is a function and can be used in these situations wh
 ```
 ****
 
-===== All the rest...
-
-This mutual recursion is difficult, or impossible, to do with just queries.
-
-TIP: We could still solve it with recursive queries if we separate sub-recipes and the information about quantities. So a Recipe would have data such as `#:recipe{:ingredient-line-items [{:quantity 2, :uom :teaspoon :ingredient {:id ".." :name "Salt"}},...], :sub-recipes [#:recipe{:id "rec2", ...}] :sub-recipe-quantities {"rec2" {:quanity 0.1, :uom :litre}, ..}}` and query `[:recipe/ingredient-line-items (get-query IngredientLineItem) {:recipe/sub-recipes 1} :recipe/sub-recipe-quantities]`. It works, but it could be more elegant. Therefore we explore a different solution here, which enables us to do exactly what we want.
-
-This is a perfect use case for dynamic components and hooks, namely `use-component`.
-
-What we will do is load a Recipe that has a RecipeLineItem that _refers_ to a Recipe (just the ID and name, avoiding the problematic recursive items). We then swap out the reference for a dynamically loaded entity when the user wants to see the details of the sub-recipe. We also use a union query for the RecipeLineItem's child, though it is not strictly necessary (it could simply query for both and always get just one of them).
-
-There is a slight complication with the on-demand loading of the sub-recipe because the use-component hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. We will therefore initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook can then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
+// TODO: I do not think this insight is relevant anymore, after I removed the union component? [jakub]
 
 .dynamic-recursion-cards
 ====
