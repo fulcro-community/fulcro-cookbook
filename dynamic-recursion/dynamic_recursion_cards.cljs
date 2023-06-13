@@ -140,30 +140,17 @@
 
 (def ui-recipe-reference (comp/factory RecipeReference {:keyfn :recipe/id}))
 
-(defn union-ident [props]
-  (if (:recipe/id props)
-    [:recipe/id (:recipe/id props)]
-    [:ingredient/id (:ingredient/id props)]))
-
-(defsc RecipeReferenceOrIngredientUnion [this props]
-  {:ident (fn [] (union-ident props))
-   :query (fn [] {:recipe/id     (comp/get-query RecipeReference)
-                  :ingredient/id (comp/get-query Ingredient)})}
-  (if (:recipe/id props)
-    (ui-recipe-reference props)
-    (ui-ingredient props)))
-
-(def ui-ref-or-ingredient (comp/factory RecipeReferenceOrIngredientUnion {:keyfn union-ident}))
-
-(defsc RecipeLineItem [this {:recipe-line-item/keys [qty uom entity]}]
+(defsc RecipeLineItem [this {:recipe-line-item/keys [qty uom ingredient sub-recipe]}]
   {:ident :recipe-line-item/id
    :query [:recipe-line-item/id
            :recipe-line-item/qty
            :recipe-line-item/uom
-           {:recipe-line-item/entity (comp/get-query RecipeReferenceOrIngredientUnion)}]}
-  (let [item-is-recipe? (:recipe/id entity)]
-    (dom/ul (str qty " " uom)
-      (ui-ref-or-ingredient entity))))
+           {:recipe-line-item/ingredient (comp/get-query Ingredient)}
+           {:recipe-line-item/sub-recipe (comp/get-query RecipeReference)}]} 
+  (dom/ul (str qty " " uom)
+    (if ingredient
+      (ui-ingredient ingredient)
+      (ui-recipe-reference sub-recipe))))
 
 (def ui-line-item (comp/factory RecipeLineItem {:keyfn :recipe-line-item/id}))
 
@@ -186,8 +173,8 @@
    :initial-state {:recipe-list/recipes [{} {}]}}
   (dom/div {}
     (dom/button {:onClick (fn []
-                            (df/load this :recipe/all Recipe {:target [:component/id ::RecipeList :recipe-list/recipes]})
-                            )} "Load")
+                            (df/load this :recipe/all Recipe {:target [:component/id ::RecipeList :recipe-list/recipes]}))}
+                "Load")
     (dom/ul
       (mapv ui-recipe recipes))))
 
