@@ -68,4 +68,4 @@ You have essentially three ways to approach this problem:
 
 === Recipes
 
-1. link:./dynamic-recursion/dynamic-recursion.adoc[Dynamic Recursion Recipe]
+1. link:./dynamic-recursion/dynamic-recursion.html[Dynamic Recursion Recipe]

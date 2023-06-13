@@ -1,9 +1,5 @@
 [#dynamic-recursion]
 === Solving mutually recursive elements with lazy loading with hooks and dynamic components
-:imagesdir: ./dynamic-recursion
-ifdef::env-vscode[]
-:imagesdir: .
-endif::[]
 
 How do we model our UI and get our data, when we have two mutually recursive elements? Here we want to display Recipes composed of LineItems with a quantity, unit of measure (uom), and either an ingredient or a sub-recipe: 
 
