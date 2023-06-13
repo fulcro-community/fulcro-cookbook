@@ -36,7 +36,7 @@ jobs:
         with:
           entry_point: cookbook.adoc
           docs_folder: ./
-          #include_unsupported_files: true
+          include_unsupported_files: true # We need .svg too
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
         with:
