@@ -18,14 +18,14 @@ Sections:
 
 . Pushing side-effects to the transaction subsystem and remotes
 . Repeating elements and recursive queries
-. ...
-
-TIP: What other sections should there be? Perhaps something about union queries, ...?
+. JS interop - leverage existing JS libraries
+. ... (more to come)
 
 Example ideas
 
 . SortableList
 . leverage the statecharts in the cookbook - perhaps a simplified sign-up/login/resume session example
+. A custom remote to offload heavy work to a WebWorker
 
 :sectnums:
 :sectnumlevels: 2

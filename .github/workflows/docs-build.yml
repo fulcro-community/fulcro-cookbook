@@ -34,8 +34,8 @@ jobs:
         id: adocbuild
         uses: equinor/asciidoctor-action@e0ff3ce3a561ad10cced9168552ded79be257d08
         with:
-          entry_point: cookbook.adoc
-          docs_folder: ./
+          entry_point: index.adoc
+          docs_folder: ./cookbook
           include_unsupported_files: true # We need .svg too
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v1
