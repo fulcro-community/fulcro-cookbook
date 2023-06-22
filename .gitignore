@@ -1,3 +1,7 @@
 .clj-kondo
 .lsp
 .portal
+cookbook/index.html
+cookbook/dynamic-recursion/dynamic-recursion.html
+*.png.cache
+

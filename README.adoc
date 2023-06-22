@@ -18,6 +18,28 @@ Images and wireframes - use e.g. https://excalidraw.com/
 
 Have a look at https://gist.github.com/dcode/0cfbf2699a1fe9b46ff04c41721dda74
 
+=== Excalidraw images
+
+When including these, set the attributes `,100%opts=inline` so that the image is not too broad and fonts show correctly (also check that you have `:stylesheet: cookbook.css` at the top of your document, see `index.adoc` for an example):
+
+```
+image::./recipes-ui.svg["UI wireframes",100%,opts=inline]
+```
+
+TIP: Asciidoctor's docs recommend to remove `width, height` from the SVG, and only leave `viewBox` there.
+
+=== Previewing
+
+If VS Code preview is not enough, you can use `asciidoctor` to generate the HTML and open it in a browser. With Babashka:
+
+```shell
+bb render
+```
+
+then open e.g. `cookbook/dynamic-recursion/dynamic-recursion.html` in a browser.
+
+Limitations: Source code highlighting seems currently not working.
+
 === Problems and limitations
 
 * VS Code preview of included SVG images requires Light Mode to work well, as they are almost invisible in the dark mode.

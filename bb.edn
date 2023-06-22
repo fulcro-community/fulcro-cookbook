@@ -1,0 +1,10 @@
+{:tasks {render {:requires ([babashka.fs :as fs] [clojure.string :as str])
+                 :task (let [pwd (fs/cwd)
+                             files (->> (fs/glob "." "**/*.adoc") 
+                                        (map str) 
+                                        (map (fn [s] (str/replace s "cookbook/" "")))
+                                        (str/join " "))]
+                         (println "Converting" files)
+                         (shell (format "docker run --rm -it -v %s/cookbook:/documents/ asciidoctor/docker-asciidoctor
+  asciidoctor -r asciidoctor-kroki -v %s"
+                                        pwd files)))}}}

@@ -64,8 +64,8 @@ You have essentially three ways to approach this problem:
 
 (2) "Unroll" the recursion by defining a unique component for each level, such as Folder1, Folder2, Folder3 and leveraging the power of Clojure to avoid code duplication.
 
-(3) An ad-hoc solution for a rare case (see e.g. the <<#dynamic-recursion>> recipe)
+(3) An ad-hoc solution for a rare case (see e.g. the xref:dynamic-recursion/dynamic-recursion.adoc#dynamic-recursion[Solving mutually recursive elements] recipe)
 
 === Recipes
 
-1. link:./dynamic-recursion/dynamic-recursion.html[Dynamic Recursion Recipe]
+1. xref:dynamic-recursion/dynamic-recursion.adoc[Solving mutually recursive elements with lazy loading with hooks and dynamic components]
