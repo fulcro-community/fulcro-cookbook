@@ -182,9 +182,8 @@ We now understand the structure of our components and the data tree, and can exp
 .Data loading
 image::./data-loads.svg["Data loading",100%,opts=inline]
 
-===== WIP
-
-There is a slight complication with the on-demand loading of the sub-recipe because the use-component hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. We will therefore initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook can then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
+NOTE: There is a slight complication with the on-demand loading of the sub-recipe because the use-component hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. We will therefore initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook can then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
+// Jakub: Is this really necessary? The component wouldn't be rendered if we did not already have id+name of the recipe (which the parent RecipeReference uses)
 
 ===== Insights
 
@@ -206,28 +205,9 @@ Because the static query mechanism offers a few advantages:
 * The query itself becomes a valuable source of information (which we leverage e.g., for Dynamic Routing)
 ****
 
-.Insight #2
-****
-Remember the ident function is a function and can be used in these situations where you may need to normalize differently based on what's in the data. This is a powerful tool that is often overlooked.
+====== Complete code
 
-```clojure
-
-(defsc LeafOrNode [_ props extra]
-  {:ident (fn []
-            (if (:recipe-line-items/id props)
-              [:recipe-line-items/id (:recipe-line-items/id props)]
-              [:ingredient-line-items/id (:ingredient-line-items/id props)]))
-   :query (fn [] {:recipe-line-items/id (comp/get-query RecipeRecipeLineItem)
-                  :ingredient-line-items/id (comp/get-query IngredientLineItem)})}
-
-  (if (:recipe-line-items/id props)
-    (ui-recipe-recipe-line-item props extra)
-    (ui-recipe-ingredient-line-item props extra)))
-
-```
-****
-
-// TODO: I do not think this insight is relevant anymore, after I removed the union component? [jakub]
+Finally, the code:
 
 .dynamic-recursion-cards
 ====
