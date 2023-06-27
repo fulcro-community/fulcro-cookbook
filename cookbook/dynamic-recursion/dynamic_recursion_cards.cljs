@@ -80,12 +80,9 @@
   {::pco/input  [:recipe-line-item/id]
    ::pco/output [:recipe-line-item/qty
                  :recipe-line-item/uom
-                 :recipe-line-item/ingredient [:ingredient/id]
-                 :recipe-line-item/sub-recipe [:recipe/id]]}
-  (when-let [res (get-in @pretend-server-database [:recipe-line-item/id id])]
-    (merge {:recipe-line-item/ingredient ::pco/unknown-value ; TODO This does not seem to help, FE is still getting missing-attribute error
-            :recipe-line-item/sub-recipe ::pco/unknown-value}
-           res)))
+                 {:recipe-line-item/ingredient [:ingredient/id]}
+                 {:recipe-line-item/sub-recipe [:recipe/id]}]}
+  (get-in @pretend-server-database [:recipe-line-item/id id]))
 
 (pco/defresolver ingredient-resolver [_ {:ingredient/keys [id]}]
   {::pco/input  [:ingredient/id]
@@ -147,11 +144,13 @@
 
 (defsc RecipeLineItem [this {:recipe-line-item/keys [qty uom ingredient sub-recipe]}]
   {:ident :recipe-line-item/id
-   :query [:recipe-line-item/id
-           :recipe-line-item/qty
-           :recipe-line-item/uom
-           {:recipe-line-item/ingredient (comp/get-query Ingredient)}
-           {:recipe-line-item/sub-recipe (comp/get-query RecipeReference)}]} 
+   :query (fn []  ; fn so that we can use Pathom's "optional" marker w/ Fulcro being confused
+            [:recipe-line-item/id
+             :recipe-line-item/qty
+             :recipe-line-item/uom
+           ;; Wrap with pco/? so that Pathom does not report attribute-missing
+             (pco/? {:recipe-line-item/ingredient (comp/get-query Ingredient)})
+             (pco/? {:recipe-line-item/sub-recipe (comp/get-query RecipeReference)})])} 
   (dom/ul (str qty " " uom)
     (if ingredient
       (ui-ingredient ingredient)
