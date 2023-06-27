@@ -28,6 +28,7 @@ image::./recipes-ui.svg["UI wireframes",100%,opts=inline]
 
 TIP: Asciidoctor's docs recommend to remove `width, height` from the SVG, and only leave `viewBox` there.
 
+
 === Previewing
 
 If VS Code preview is not enough, you can use `asciidoctor` to generate the HTML and open it in a browser. With Babashka:
@@ -39,6 +40,15 @@ bb render
 then open e.g. `cookbook/dynamic-recursion/dynamic-recursion.html` in a browser.
 
 Limitations: Source code highlighting seems currently not working.
+
+=== Code
+
+We use Fulcro https://github.com/awkay/workspaces[workspaces] to be able to run and thus test the code of examples:
+
+1. Add the parent directory of your code example to the `:paths` in `deps.edn`
+2. Run `yarn install` and `shadow-cljs watch workspaces`
+3. Access http://localhost:9001, select the "card" you want to see (and perhaps, in its ⠇ menu, select "Solo" to see it in max size)
+4. Use the card's [Inspector] button to open Fulcro Inspect in its context
 
 === Problems and limitations
 

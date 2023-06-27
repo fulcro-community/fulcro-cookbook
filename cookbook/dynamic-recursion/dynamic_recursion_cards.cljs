@@ -1,17 +1,17 @@
-(ns com.fulcrologic.fulcro.cards.dynamic-recursion-cards
-
+(ns dynamic-recursion-cards
   (:require
-    [cljs.core.async :as async]
-    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
-    [com.fulcrologic.fulcro.data-fetch :as df]
-    [com.fulcrologic.fulcro.dom :as dom]
-    [com.fulcrologic.fulcro.mutations :as m]
-    [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
-    [com.fulcrologic.fulcro.react.hooks :as hooks]
-    [com.wsscode.pathom.connect :as pc]
-    [com.wsscode.pathom.core :as p]
-    [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
-    [nubank.workspaces.core :as ws]))
+   [cljs.core.async :as async]
+   [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
+   [com.fulcrologic.fulcro.data-fetch :as df]
+   [com.fulcrologic.fulcro.dom :as dom]
+   [com.fulcrologic.fulcro.mutations :as m]
+   [com.fulcrologic.fulcro.networking.mock-server-remote :refer [mock-http-server]]
+   [com.fulcrologic.fulcro.react.hooks :as hooks]
+   [com.wsscode.pathom3.connect.indexes :as pci]
+   [com.wsscode.pathom3.connect.operation :as pco]
+   [com.wsscode.pathom3.interface.async.eql :as p.a.eql]
+   [nubank.workspaces.card-types.fulcro3 :as ct.fulcro]
+   [nubank.workspaces.core :as ws]))
 
 (defonce pretend-server-database
   (atom
@@ -41,69 +41,74 @@
      :recipe-line-item/id {1 {:recipe-line-item/id     1
                               :recipe-line-item/qty    2
                               :recipe-line-item/uom    :slice
-                              :recipe-line-item/entity {:recipe/id 2}}
+                              :recipe-line-item/sub-recipe {:recipe/id 2}}
                            2 {:recipe-line-item/id     2
                               :recipe-line-item/qty    2
                               :recipe-line-item/uom    :tbsp
-                              :recipe-line-item/entity {:recipe/id 3}}
+                              :recipe-line-item/sub-recipe {:recipe/id 3}}
                            3 {:recipe-line-item/id     3
                               :recipe-line-item/qty    2
                               :recipe-line-item/uom    :cup
-                              :recipe-line-item/entity {:ingredient/id 2}}
+                              :recipe-line-item/ingredient {:ingredient/id 2}}
                            4 {:recipe-line-item/id     4
                               :recipe-line-item/qty    1
                               :recipe-line-item/uom    :cup
-                              :recipe-line-item/entity {:ingredient/id 3}}
+                              :recipe-line-item/ingredient {:ingredient/id 3}}
                            5 {:recipe-line-item/id     5
                               :recipe-line-item/qty    1
                               :recipe-line-item/uom    :tsp
-                              :recipe-line-item/entity {:ingredient/id 4}}
+                              :recipe-line-item/ingredient {:ingredient/id 4}}
                            6 {:recipe-line-item/id     6
                               :recipe-line-item/qty    2
                               :recipe-line-item/uom    :tbsp
-                              :recipe-line-item/entity {:ingredient/id 5}}
+                              :recipe-line-item/ingredient {:ingredient/id 5}}
                            7 {:recipe-line-item/id     7
                               :recipe-line-item/qty    1
                               :recipe-line-item/uom    :lb
-                              :recipe-line-item/entity {:ingredient/id 1}}
+                              :recipe-line-item/ingredient {:ingredient/id 1}}
                            8 {:recipe-line-item/id     8
                               :recipe-line-item/qty    1
                               :recipe-line-item/uom    :tsp
-                              :recipe-line-item/entity {:ingredient/id 4}}}}))
+                              :recipe-line-item/ingredient {:ingredient/id 4}}}}))
 
-(pc/defresolver recipe-resolver [_ {:recipe/keys [id]}]
-  {::pc/input  #{:recipe/id}
-   ::pc/output [:recipe/name {:recipe/line-items [:recipe-line-item/id]}]}
+(pco/defresolver recipe-resolver [_ {:recipe/keys [id]}]
+  {::pco/input  [:recipe/id]
+   ::pco/output [:recipe/name {:recipe/line-items [:recipe-line-item/id]}]}
   (get-in @pretend-server-database [:recipe/id id]))
 
-(pc/defresolver recipe-line-item-resolver [_ {:recipe-line-item/keys [id]}]
-  {::pc/input  #{:recipe-line-item/id}
-   ::pc/output [:recipe-line-item/qty
-                :recipe-line-item/uom
-                {:recipe-line-item/entity [:recipe/id :ingredient/id]}]}
-  (get-in @pretend-server-database [:recipe-line-item/id id]))
+(pco/defresolver recipe-line-item-resolver [_ {:recipe-line-item/keys [id]}]
+  {::pco/input  [:recipe-line-item/id]
+   ::pco/output [:recipe-line-item/qty
+                 :recipe-line-item/uom
+                 :recipe-line-item/ingredient [:ingredient/id]
+                 :recipe-line-item/sub-recipe [:recipe/id]]}
+  (when-let [res (get-in @pretend-server-database [:recipe-line-item/id id])]
+    (merge {:recipe-line-item/ingredient ::pco/unknown-value ; TODO This does not seem to help, FE is still getting missing-attribute error
+            :recipe-line-item/sub-recipe ::pco/unknown-value}
+           res)))
 
-(pc/defresolver ingredient-resolver [_ {:ingredient/keys [id]}]
-  {::pc/input  #{:ingredient/id}
-   ::pc/output [:ingredient/name]}
+(pco/defresolver ingredient-resolver [_ {:ingredient/keys [id]}]
+  {::pco/input  [:ingredient/id]
+   ::pco/output [:ingredient/name]}
   (get-in @pretend-server-database [:ingredient/id id]))
 
-(pc/defresolver all-recipe-resolver [_ _]
-  {::pc/output [{:recipe/all [:recipe/id]}]}
+(pco/defresolver all-recipe-resolver [_ _]
+  {::pco/output [{:recipe/all [:recipe/id]}]}
   (let [ids (keys (get @pretend-server-database :recipe/id))]
     {:recipe/all (mapv (fn [id] {:recipe/id id}) ids)}))
 
 (def resolvers [recipe-resolver recipe-line-item-resolver ingredient-resolver all-recipe-resolver])
 
-(def pathom-parser (p/parser {::p/env     {::p/reader                 [p/map-reader
-                                                                       pc/reader2
-                                                                       pc/open-ident-reader]
-                                           ::pc/mutation-join-globals [:tempids]}
-                              ::p/mutate  pc/mutate
-                              ::p/plugins [(pc/connect-plugin {::pc/register [resolvers]})
-                                           (p/post-process-parser-plugin p/elide-not-found)
-                                           p/error-handler-plugin]}))
+(def default-env
+  (-> {:com.wsscode.pathom3.error/lenient-mode? true}
+      #_(p.plugin/register pbip/mutation-resolve-params) ; needed or not?
+      (pci/register resolvers)))
 
+(defn process-eql [eql]
+  (let [ch (async/promise-chan)]
+    (-> (p.a.eql/process default-env eql)
+        (.then #(async/go (async/>! ch %))))
+    ch))
 
 
 (declare Recipe ui-recipe)
@@ -182,8 +187,6 @@
   (ct.fulcro/fulcro-card
     {::ct.fulcro/wrap-root? true
      ::ct.fulcro/root       RecipeList
-     ::ct.fulcro/app        (let [process-eql (fn [eql] (async/go
-                                                          (pathom-parser {} eql)))
-                                  remote      (mock-http-server {:parser process-eql})]
+     ::ct.fulcro/app        (let [remote      (mock-http-server {:parser process-eql})]
                               {:remotes {:remote remote}})}))
 
