@@ -82,7 +82,12 @@
                  :recipe-line-item/uom
                  {:recipe-line-item/ingredient [:ingredient/id]}
                  {:recipe-line-item/sub-recipe [:recipe/id]}]}
-  (get-in @pretend-server-database [:recipe-line-item/id id]))
+  (when-let [it (get-in @pretend-server-database [:recipe-line-item/id id])]
+    (merge
+     ;; Provide default values so that Pathom won't complain about missing-attribute:
+     {:recipe-line-item/ingredient nil
+      :recipe-line-item/sub-recipe nil}
+     it)))
 
 (pco/defresolver ingredient-resolver [_ {:ingredient/keys [id]}]
   {::pco/input  [:ingredient/id]
@@ -144,13 +149,11 @@
 
 (defsc RecipeLineItem [this {:recipe-line-item/keys [qty uom ingredient sub-recipe]}]
   {:ident :recipe-line-item/id
-   :query (fn []  ; fn so that we can use Pathom's "optional" marker w/ Fulcro being confused
-            [:recipe-line-item/id
-             :recipe-line-item/qty
-             :recipe-line-item/uom
-           ;; Wrap with pco/? so that Pathom does not report attribute-missing
-             (pco/? {:recipe-line-item/ingredient (comp/get-query Ingredient)})
-             (pco/? {:recipe-line-item/sub-recipe (comp/get-query RecipeReference)})])} 
+   :query [:recipe-line-item/id
+           :recipe-line-item/qty
+           :recipe-line-item/uom
+           {:recipe-line-item/ingredient (comp/get-query Ingredient)}
+           {:recipe-line-item/sub-recipe (comp/get-query RecipeReference)}]} 
   (dom/ul (str qty " " uom)
     (if ingredient
       (ui-ingredient ingredient)
