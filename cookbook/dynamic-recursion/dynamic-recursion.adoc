@@ -182,14 +182,14 @@ We now understand the structure of our components and the data tree, and can exp
 .Data loading
 image::./data-loads.svg["Data loading",100%,opts=inline]
 
-NOTE: There is a slight complication with the on-demand loading of the sub-recipe because the use-component hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. We will therefore initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook can then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
-// Jakub: Is this really necessary? The component wouldn't be rendered if we did not already have id+name of the recipe (which the parent RecipeReference uses)
+TIP: There could be a slight complication with the on-demand loading of the sub-recipe. The reason is that the `use-component` hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. I.e. <entity> <id> must not be undefined/nil, it must be at least an empty map (or rather, a map with an id). We could initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook could then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
+Fortunately, in our case this is not required, because the parent recipe-line-item has already loaded the name and ID of the recipe in question (just not its line items). 
 
 ===== Insights
 
 .Insight #1
 ****
-If a static query doesn't work for that, then the options are dynamic queries or breaking out of the model using a use-component hook.
+If a static query doesn't work for your recursive component needs, then the options are dynamic queries or breaking out of the model using a use-component hook.
 The former works in 95% of every case, the middle works in a few cases, and the latter covers the rest.
 
 You could ask, if I can do everything with use-component, then why not just supply that and drop the components and static queries altogether?
