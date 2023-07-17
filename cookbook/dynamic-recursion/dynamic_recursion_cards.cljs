@@ -1,4 +1,4 @@
-(ns dynamic-recursion-cards
+(ns dynamic-recursion-cards 
   (:require
    [cljs.core.async :as async]
    [com.fulcrologic.fulcro.components :as comp :refer [defsc]]
@@ -16,60 +16,42 @@
 (defonce pretend-server-database
   (atom
     {:recipe/id           {1 {:recipe/id         1
-                              :recipe/name       "Sandwich"
-                              :recipe/line-items [{:recipe-line-item/id 1}
-                                                  {:recipe-line-item/id 2}]}
+                              :recipe/name       "Pancake Batter"
+                              :recipe/line-items [{:recipe-line-item/id 10}
+                                                  {:recipe-line-item/id 11}
+                                                  {:recipe-line-item/id 12}]}
                            2 {:recipe/id         2
-                              :recipe/name       "Bread"
-                              :recipe/line-items [{:recipe-line-item/id 4}
-                                                  {:recipe-line-item/id 5}
-                                                  {:recipe-line-item/id 6}]}
-                           3 {:recipe/id         3
-                              :recipe/name       "Peanut Butter"
-                              :recipe/line-items [{:recipe-line-item/id 7}
-                                                  {:recipe-line-item/id 8}]}}
-     :ingredient/id       {1 {:ingredient/id   1
-                              :ingredient/name "Peanuts"}
-                           2 {:ingredient/id   2
-                              :ingredient/name "Flour"}
-                           3 {:ingredient/id   3
-                              :ingredient/name "Water"}
-                           4 {:ingredient/id   4
-                              :ingredient/name "Salt"}
-                           5 {:ingredient/id   5
-                              :ingredient/name "Yeast"}}
-     :recipe-line-item/id {1 {:recipe-line-item/id     1
-                              :recipe-line-item/qty    2
-                              :recipe-line-item/uom    :slice
-                              :recipe-line-item/sub-recipe {:recipe/id 2}}
-                           2 {:recipe-line-item/id     2
-                              :recipe-line-item/qty    2
-                              :recipe-line-item/uom    :tbsp
-                              :recipe-line-item/sub-recipe {:recipe/id 3}}
-                           3 {:recipe-line-item/id     3
-                              :recipe-line-item/qty    2
-                              :recipe-line-item/uom    :cup
-                              :recipe-line-item/ingredient {:ingredient/id 2}}
-                           4 {:recipe-line-item/id     4
-                              :recipe-line-item/qty    1
-                              :recipe-line-item/uom    :cup
-                              :recipe-line-item/ingredient {:ingredient/id 3}}
-                           5 {:recipe-line-item/id     5
-                              :recipe-line-item/qty    1
-                              :recipe-line-item/uom    :tsp
-                              :recipe-line-item/ingredient {:ingredient/id 4}}
-                           6 {:recipe-line-item/id     6
-                              :recipe-line-item/qty    2
-                              :recipe-line-item/uom    :tbsp
-                              :recipe-line-item/ingredient {:ingredient/id 5}}
-                           7 {:recipe-line-item/id     7
-                              :recipe-line-item/qty    1
-                              :recipe-line-item/uom    :lb
-                              :recipe-line-item/ingredient {:ingredient/id 1}}
-                           8 {:recipe-line-item/id     8
-                              :recipe-line-item/qty    1
-                              :recipe-line-item/uom    :tsp
-                              :recipe-line-item/ingredient {:ingredient/id 4}}}}))
+                              :recipe/name       "Yogurt"
+                              :recipe/line-items [{:recipe-line-item/id 13}
+                                                  {:recipe-line-item/id 14}]}}
+     :ingredient/id       {101 {:ingredient/id   101
+                                :ingredient/name "Eggs"}
+                           102 {:ingredient/id   102
+                                :ingredient/name "Flour"}
+                           103 {:ingredient/id   103
+                                :ingredient/name "Milk"}
+                           104 {:ingredient/id   104
+                                :ingredient/name "Yogurt Starter"}}
+     :recipe-line-item/id {10 {:recipe-line-item/id     10
+                               :recipe-line-item/qty    4
+                               :recipe-line-item/uom    :piece
+                               :recipe-line-item/ingredient {:ingredient/id 101}}
+                           11 {:recipe-line-item/id     11
+                               :recipe-line-item/qty    0.25
+                               :recipe-line-item/uom    :kilo
+                               :recipe-line-item/ingredient {:ingredient/id 102}}
+                           12 {:recipe-line-item/id     12
+                               :recipe-line-item/qty    0.5
+                               :recipe-line-item/uom    :litre
+                               :recipe-line-item/sub-recipe {:recipe/id 2}}
+                           13 {:recipe-line-item/id     13
+                               :recipe-line-item/qty    1
+                               :recipe-line-item/uom    :litre
+                               :recipe-line-item/ingredient {:ingredient/id 103}}
+                           14 {:recipe-line-item/id     14
+                               :recipe-line-item/qty    10
+                               :recipe-line-item/uom    :gram
+                               :recipe-line-item/ingredient {:ingredient/id 104}}}}))
 
 (pco/defresolver recipe-resolver [_ {:recipe/keys [id]}]
   {::pco/input  [:recipe/id]
@@ -115,19 +97,21 @@
 
 (declare Recipe ui-recipe)
 
-(defsc Ingredient [this {:ingredient/keys [name]}]
+(defsc Ingredient [_this {:ingredient/keys [name]}]
   {:ident :ingredient/id
    :query [:ingredient/id
            :ingredient/name]}
-  (dom/div (str name)))
+  (dom/span " " (str name)))
 
 (def ui-ingredient (comp/factory Ingredient {:keyfn :ingredient/id}))
 
 (defsc DynamicRecipe [this {:recipe/keys [id]}]
   {:use-hooks? true}
-  (let [recipe (hooks/use-component (comp/any->app this) Recipe {:initialize?    true
-                                                                 :initial-params {:recipe/id id}
-                                                                 :keep-existing? true})]
+  (let [recipe (hooks/use-component (comp/any->app this) Recipe {:keep-existing? true}
+                                    #_ ; this below would have been necessary if DB - :recipe/id - <id> didn't exist already
+                                    {:initialize?    true
+                                     :initial-params {:recipe/id id}
+                                     :keep-existing? true})]
     ;; Load could be hooked into "expand" mutation to remove side-effect from UI logic
     (hooks/use-lifecycle (fn [] (df/load! this [:recipe/id id] Recipe)))
     (when recipe
@@ -143,11 +127,13 @@
            :recipe/name]}
   (if expand?
     (ui-dynamic-recipe {:recipe/id id})
-    (dom/div {:onClick (fn [] (m/toggle! this :ui/expand?))} name)))
+    (dom/span {:style {:cursor "pointer"}
+               :onClick (fn [] (m/toggle! this :ui/expand?))}
+              " ▶ " (dom/span {:style {:textDecoration "underline"}} name))))
 
 (def ui-recipe-reference (comp/factory RecipeReference {:keyfn :recipe/id}))
 
-(defsc RecipeLineItem [this {:recipe-line-item/keys [qty uom ingredient sub-recipe]}]
+(defsc RecipeLineItem [_this {:recipe-line-item/keys [qty uom ingredient sub-recipe]}]
   {:ident :recipe-line-item/id
    :query [:recipe-line-item/id
            :recipe-line-item/qty
@@ -155,20 +141,20 @@
            {:recipe-line-item/ingredient (comp/get-query Ingredient)}
            {:recipe-line-item/sub-recipe (comp/get-query RecipeReference)}]} 
   (dom/ul (str qty " " uom)
-    (if ingredient
+    (if (not-empty ingredient)
       (ui-ingredient ingredient)
       (ui-recipe-reference sub-recipe))))
 
 (def ui-line-item (comp/factory RecipeLineItem {:keyfn :recipe-line-item/id}))
 
-(defsc Recipe [this {:recipe/keys [name line-items]}]
+(defsc Recipe [_this {:recipe/keys [name line-items]}]
   {:initial-state (fn [{:recipe/keys [id]}] {:recipe/id id}) ; needed for dynamic use
    :ident         :recipe/id
    :query         [:recipe/id
                    :recipe/name
                    {:recipe/line-items (comp/get-query RecipeLineItem)}]}
   (dom/div
-    (str name)
+    (dom/span {:style {:textDecoration "underline"}}  (str name))
     (dom/ul
       (mapv ui-line-item line-items))))
 
@@ -177,11 +163,12 @@
 (defsc RecipeList [this {:recipe-list/keys [recipes]}]
   {:query         [{:recipe-list/recipes (comp/get-query Recipe)}]
    :ident         (fn [] [:component/id ::RecipeList])
-   :initial-state {:recipe-list/recipes [{} {}]}}
+   :initial-state {:recipe-list/recipes []}}
   (dom/div {}
-    (dom/button {:onClick (fn []
-                            (df/load this :recipe/all Recipe {:target [:component/id ::RecipeList :recipe-list/recipes]}))}
-                "Load")
+    (when-not (seq recipes)
+      (dom/button {:onClick (fn []
+                              (df/load this :recipe/all Recipe {:target [:component/id ::RecipeList :recipe-list/recipes]}))}
+                  "Load all recipes"))
     (dom/ul
       (mapv ui-recipe recipes))))
 
