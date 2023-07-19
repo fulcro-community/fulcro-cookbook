@@ -25,7 +25,7 @@ You have recipes that are multiple layers deep. At each layer, you might have an
 
 In addition, the connection between the child and parent holds the element's quantity `qty` and other pertinent information (e.g., the unit of measure `uom`). In other words, we have two mutually recursive elements - a recipe and its line item.
 
-In this particular case, we also want to lazyload the sub-recipes so we don't load the entire tree up front. That further complicates the usage of EQL recursive queries (though they do support setting a depth limit).
+In this particular case, we also want to lazyload the sub-recipes so we don't load the entire tree up front. That further complicates the usage of EQL recursive queries. (Though it could be achieved by leveraging a depth limit on the recursive query.)
 
 Let's look at the UI we want and the data we have:
 
@@ -89,7 +89,7 @@ RecipeLineItem o- "0..1" Ingredient
 
 ==== Exploring possible solutions
 
-The standard solution to loading data for recursive components is to use a https://edn-query-language.org/eql/1.0.0/specification.html#_recursive_queries[recursive queries in EQL]. It can load either the entire recursive tree or a particular number of levels. The EQL solution is the most straightforward and covers 95% of all cases.
+The standard solution to loading data for recursive components is to use a https://edn-query-language.org/eql/1.0.0/specification.html#_recursive_queries[recursive query in EQL]. It can load either the entire recursive tree or a particular number of levels. The EQL solution is the most straightforward and covers 95% of all cases.
 
 However, some cases are just too complex to solve with EQL recursive queries. This approach requires that the same entity be present at each level of traversal, i.e. we have a single component that may contain itself. That is not the case here, where we have Recipe containing RecipeLineItem, containing Recipe ... .
 
@@ -117,7 +117,7 @@ It might not be elegant, but it gets the job done.
 
 In this case, we have also the additional requirement of lazy loading of sub-recipes. We can solve both problems by using a dynamic component, i.e. one that is not part of the query tree but gets its data independently, via the `use-component` hook.
 
-TIP: Dynamic use-component components provide great flexibility, at the cost of increased complexity and decreased transparency (since the UI isn't anymore a pure fn of data, passed from the parent).)
+TIP: Dynamic use-component components provide great flexibility, at the cost of increased complexity and decreased transparency (since the UI isn't anymore a pure function of data, passed from the parent).
 
 What we will do is load a Recipe that has a RecipeLineItem that _refers_ to a Recipe (just the ID and name, avoiding the problematic recursive line items). We then swap out the reference for a dynamically loaded entity when the user wants to see the details of the sub-recipe.
 
@@ -148,7 +148,6 @@ component "Recipe" {
         json Recipe_2 {
         "id": "2",
         "name": "M. Yogurt",
-        "ui/expand?": true,
         "line-items": "..."
         }
       }
@@ -156,13 +155,11 @@ component "Recipe" {
   }
 
   component "RecipeLineItem 1" {
-    component "RecipeReference 1" {
-      json Recipe_1 {
+    json RecipeReference_1 {
         "id": "3",
         "name": "M. Berries",
         "ui/expand?": false
       }
-    }
   }
 }
 @enduml
@@ -182,15 +179,17 @@ We now understand the structure of our components and the data tree, and can exp
 .Data loading
 image::./data-loads.svg["Data loading",100%,opts=inline]
 
-TIP: There could be a slight complication with the on-demand loading of the sub-recipe. The reason is that the `use-component` hook is slightly tricky to use with something that has yet to be loaded since it needs some data to exist in the client DB. I.e. <entity> <id> must not be undefined/nil, it must be at least an empty map (or rather, a map with an id). We could initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook could then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
+We can see that the initial `df/load!` only loads the id and name of the Yogurt sub-recipe. When the user expands it, it triggers an additional load, to fetch the remaining data of the recipe.
+
+TIP: There could be a small complication with the on-demand loading of the sub-recipe. The reason is that the `use-component` hook is slightly tricky to use with something that has yet to be loaded, since it needs some data to exist in the client DB. I.e. <entity> <id> must not be undefined/nil, it must be at least an empty map (or rather, a map with an id). We could initialize the `DynamicRecipe` component via `:initial-params` together with specifying `:initial-state` for the `Recipe` so that the hook could then make an "empty" but properly identified placeholder in the database to hook up to while the load runs. I.e., `use-component` with `:initial-params` generates a `{:recipe/id n}` map and normalizes it (which puts the ident in place for finding it as well). Then the load gets issued. When the details arrive, you've got the full recipe.
 Fortunately, in our case this is not required, because the parent recipe-line-item has already loaded the name and ID of the recipe in question (just not its line items). 
 
 ===== Insights
 
-.Insight #1
+.Power and downsides of use-component
 ****
-If a static query doesn't work for your recursive component needs, then the options are dynamic queries or breaking out of the model using a use-component hook.
-The former works in 95% of every case, the middle works in a few cases, and the latter covers the rest.
+If a static query doesn't work for your recursive component needs, then the options are dynamic queries or breaking out of the standard Fulcro model by leveraging a use-component hook.
+Recursive queries work in 95% of cases, dynamic queries works in a few more, and use-component covers the rest.
 
 You could ask, if I can do everything with use-component, then why not just supply that and drop the components and static queries altogether?
 
@@ -200,14 +199,34 @@ Because the static query mechanism offers a few advantages:
 * Side-effects combined with rendering (i.e., what most React hooks do) cause problems:
  ** Hot code reload doesn't work cleanly since components aren't pure functions anymore
  ** Controlling the data lifecycle becomes more difficult because it is tied to when things are mounted as opposed to compositional logic outside of rendering.
- ** Refactoring UI breaks things (e.g., a side effect A did accidentally gets coupled to B. Move A and B stops working).
+ ** Refactoring UI breaks things (E.g., a side effect A did accidentally got coupled to B. Move A and B stops working)
 * Easier to trace what is going on in the data model because it is more straightforward - each component gets its data only from its parent, and you can see what is the data tree going into the Root component
 * The query itself becomes a valuable source of information (which we leverage e.g., for Dynamic Routing)
 ****
 
 ====== Complete code
 
-Finally, the code:
+Finally, let's look at some code! First of all, a few highlights. See the complete code listing at the bottom.
+
+.DynamicRecipe
+[source,clojure]
+----
+include::./dynamic_recursion_cards.cljs[tag=dynamic-recipe]
+----
+
+DynamicRecipe is a hooks-based component `(1)`, which "fetches" data from the client DB via `hooks/use-component` `(2)`. Notice that we need to tell Fulcro its `:ident` `(3)` since the component has a dynamic one. In this case, we already know that there is some data for the ident in the client DB (namely id, name), so we do not need to initialize it. Alternatively, we could leave `:initialize? true` (the default) but would then need to provide the `:recipe/id` via `:initial-params`, and perhaps also include `:keep-existing? true`. Though in this particular case, our initialization would only be overriding `:name`, and we are going to re-load it at once, so it doesn't really matter.
+
+As the component is mounted in the DOM, its `use-lifecycle` will fire a `df/load!` `(4)` to load the remaining data. If we used a true remote server and a slower network, you could see that the expanded Recipe only has initially id, name, until the rest of the data arrives.
+
+.RecipeReference
+[source,clojure]
+----
+include::./dynamic_recursion_cards.cljs[tag=recipe-ref]
+----
+
+RecipeReference displays either the name of the recipe when collapsed, or renders a DynamicRecipe when expanded.
+
+Finally, here is the complete code listing:
 
 .dynamic-recursion-cards
 ====

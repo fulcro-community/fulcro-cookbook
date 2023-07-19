@@ -81,11 +81,12 @@
   (let [ids (keys (get @pretend-server-database :recipe/id))]
     {:recipe/all (mapv (fn [id] {:recipe/id id}) ids)}))
 
-(def resolvers [recipe-resolver recipe-line-item-resolver ingredient-resolver all-recipe-resolver])
+(def resolvers [recipe-resolver recipe-line-item-resolver ingredient-resolver
+                all-recipe-resolver])
 
 (def default-env
   (-> {:com.wsscode.pathom3.error/lenient-mode? true}
-      #_(p.plugin/register pbip/mutation-resolve-params) ; needed or not?
+      #_(p.plugin/register pbip/mutation-resolve-params) ; not needed here
       (pci/register resolvers)))
 
 (defn process-eql [eql]
@@ -99,37 +100,40 @@
 
 (defsc Ingredient [_this {:ingredient/keys [name]}]
   {:ident :ingredient/id
-   :query [:ingredient/id
-           :ingredient/name]}
+   :query [:ingredient/id :ingredient/name]}
   (dom/span " " (str name)))
 
 (def ui-ingredient (comp/factory Ingredient {:keyfn :ingredient/id}))
 
+;; tag::dynamic-recipe[]
 (defsc DynamicRecipe [this {:recipe/keys [id]}]
-  {:use-hooks? true}
-  (let [recipe (hooks/use-component (comp/any->app this) Recipe {:keep-existing? true}
-                                    #_ ; this below would have been necessary if DB - :recipe/id - <id> didn't exist already
+  {:use-hooks? true} ; <1>
+  (let [recipe (hooks/use-component (comp/any->app this) Recipe  ; <2>
+                                    {:initialize? false :ident [:recipe/id id]} ; <3>
+                                     #_ ; this below would have been necessary if
+                                    ; DB - :recipe/id - <id> didn't exist already
                                     {:initialize?    true
                                      :initial-params {:recipe/id id}
                                      :keep-existing? true})]
     ;; Load could be hooked into "expand" mutation to remove side-effect from UI logic
-    (hooks/use-lifecycle (fn [] (df/load! this [:recipe/id id] Recipe)))
+    (hooks/use-lifecycle (fn [] (df/load! this [:recipe/id id] Recipe))) ; <4>
     (when recipe
       (ui-recipe recipe))))
+;; end::dynamic-recipe[]
 
 (def ui-dynamic-recipe (comp/factory DynamicRecipe))
 
+;; tag::recipe-ref[]
 (defsc RecipeReference [this {:ui/keys     [expand?]
                               :recipe/keys [id name]}]
   {:ident :recipe/id
-   :query [:ui/expand?
-           :recipe/id
-           :recipe/name]}
+   :query [:ui/expand? :recipe/id :recipe/name]}
   (if expand?
     (ui-dynamic-recipe {:recipe/id id})
     (dom/span {:style {:cursor "pointer"}
                :onClick (fn [] (m/toggle! this :ui/expand?))}
               " ▶ " (dom/span {:style {:textDecoration "underline"}} name))))
+;; end::recipe-ref[]
 
 (def ui-recipe-reference (comp/factory RecipeReference {:keyfn :recipe/id}))
 
@@ -167,7 +171,10 @@
   (dom/div {}
     (when-not (seq recipes)
       (dom/button {:onClick (fn []
-                              (df/load this :recipe/all Recipe {:target [:component/id ::RecipeList :recipe-list/recipes]}))}
+                              (df/load this :recipe/all Recipe 
+                                       {:target [:component/id 
+                                                 ::RecipeList 
+                                                 :recipe-list/recipes]}))}
                   "Load all recipes"))
     (dom/ul
       (mapv ui-recipe recipes))))
