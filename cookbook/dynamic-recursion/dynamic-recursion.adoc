@@ -13,17 +13,17 @@
 
 You have a recursive data structure you need to display in a way that matches the data hierarchy. 
 
-For example.
+For example:
 
 . A file system, folders with arbitrary depth, and files. 
 . A tree of comments. 
 . A recipe that contains other recipes.
 
+There are different ways to address this in Fulcro, depending on the concrete use case. Next, we will explore a particular one.
+
 ==== The concrete problem
 
-You have recipes that are multiple layers deep. At each layer, you might have an ingredient or sub-recipe. This nesting can go on arbitrarily. Think pizza with sauce -> the sauce has sub-components. Sub-components, in turn, might have final ingredients (salt, oil, pepper).
-
-In addition, the connection between the child and parent holds the element's quantity `qty` and other pertinent information (e.g., the unit of measure `uom`). In other words, we have two mutually recursive elements - a recipe and its line item.
+You have recipes containing line items, which further contain either an ingredient or a sub-recipe. This nesting can go on arbitrarily. Think pizza with sauce -> the sauce has sub-components. Sub-components, in turn, might have final ingredients (salt, oil, pepper). Line items also hold the element's quantity `qty` and unit of measure `uom`. In other words, we have two mutually recursive elements - a recipe and its line item.
 
 In this particular case, we also want to lazyload the sub-recipes so we don't load the entire tree up front. That further complicates the usage of EQL recursive queries. (Though it could be achieved by leveraging a depth limit on the recursive query.)
 
@@ -91,23 +91,27 @@ RecipeLineItem o- "0..1" Ingredient
 
 The standard solution to loading data for recursive components is to use a https://edn-query-language.org/eql/1.0.0/specification.html#_recursive_queries[recursive query in EQL]. It can load either the entire recursive tree or a particular number of levels. The EQL solution is the most straightforward and covers 95% of all cases.
 
+TIP: A recursive EQL query for e.g. folders would look like this: `[:folder/id :folder/name :folder/children ...]` (the `...` indicates the self-recursion).
+
 However, some cases are just too complex to solve with EQL recursive queries. This approach requires that the same entity be present at each level of traversal, i.e. we have a single component that may contain itself. That is not the case here, where we have Recipe containing RecipeLineItem, containing Recipe ... .
 
 ===== Option A: Flatten the data to get a self-recursive element
 
-We could change our data model so that a recipe contains directly sub-recipes, for example by separating the qty and uom data and the sub-recipes:
+We could change our data model so that a recipe contains directly sub-recipes, for example by separating and storing separately the qty and uom data and the sub-recipes themselves:
 
 [source,clojure]
 ----
 {:recipe/name "Pancake Batter" :recipe/id "1"
  :recipe/line-items [{:r.l.i/qty 4 :r.l.i/uom "piece"
                       :r.l.i/ingredient {:ingredient/name "Eggs", :ingredient/id "101"}}
-                     {:r.l.i/qty 0.5 :r.l.i/uom "litre"
+                     {:r.l.i/qty 0.5 :r.l.i/uom "litre" ; <1>
                       :r.l.i/sub-recipe [:recipe/id "2"]}]
- :recipe/sub-recipes [{:recipe/id "2"
+ :recipe/sub-recipes [{:recipe/id "2" ; <2>
                        :recipe/name "Yogurt"
                        :recipe/line-items [...]}]}
 ----
+<1> The line-item information (uom, qty) for Yogurt
+<2> The Yogurt sub-recipe itself
 
 Then inside the component you would join the two pieces of data together, at render time.
 
