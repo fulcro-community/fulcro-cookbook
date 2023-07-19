@@ -2,5 +2,5 @@
     "cSpell.words": [
         "fbook"
     ],
-    "asciidoc.use_kroki": true
+    "asciidoc.extensions.enableKroki": true
 }
