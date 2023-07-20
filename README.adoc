@@ -4,7 +4,7 @@
 
 This book demonstrates how to use the tools Fulcro offers to solve various real-life problems, with realistic examples.
 
-https://fulcro-community.github.io/fulcro-cookbook/cookbook.html[Read the Cookbook here] and look at `cookbook.adoc` for the source.
+https://fulcro-community.github.io/fulcro-cookbook/[Read the Cookbook here] and look at `cookbook.adoc` for the source.
 
 == Contributing
 
