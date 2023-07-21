@@ -67,25 +67,25 @@ RecipeLineItem o- "0..1" Ingredient
 ----
 {:recipe/name "Pancake Batter" :recipe/id "1"
  :recipe/line-items
- [{:r.l.i/id "10" ; <1>
-   :r.l.i/qty 4, :r.l.i/uom "piece"
-   :r.l.i/ingredient {:ingredient/name "Eggs", :ingredient/id "101"}}
-  {:r.l.i/id "11"
-   :r.l.i/qty 0.25, :r.l.i/uom "kilo"
-   :r.l.i/ingredient {:ingredient/name "Flour", :ingredient/id "102"}}
-  {:r.l.i/id "12"
-   :r.l.i/qty 0.5, :r.l.i/uom "litre"
-   :r.l.i/sub-recipe
+ [{:rli/id "10" ; <1>
+   :rli/qty 4, :rli/uom "piece"
+   :rli/ingredient {:ingredient/name "Eggs", :ingredient/id "101"}}
+  {:rli/id "11"
+   :rli/qty 0.25, :rli/uom "kilo"
+   :rli/ingredient {:ingredient/name "Flour", :ingredient/id "102"}}
+  {:rli/id "12"
+   :rli/qty 0.5, :rli/uom "litre"
+   :rli/sub-recipe
    {:recipe/name "Yogurt" :recipe/id "2"
     :recipe/line-items
-    [{:r.l.i/id "13"
-      :r.l.i/qty 1, :r.l.i/uom "litre"
-      :r.l.i/ingredient {:ingredient/name "Milk", :ingredient/id "103"}}
-     {:r.l.i/id "14"
-      :r.l.i/qty 10, :r.l.i/uom "gram"
-      :r.l.i/ingredient {:ingredient/name "Yogurt Starter", :ingredient/id "104"}}]}}]}
+    [{:rli/id "13"
+      :rli/qty 1, :rli/uom "litre"
+      :rli/ingredient {:ingredient/name "Milk", :ingredient/id "103"}}
+     {:rli/id "14"
+      :rli/qty 10, :rli/uom "gram"
+      :rli/ingredient {:ingredient/name "Yogurt Starter", :ingredient/id "104"}}]}}]}
 ----
-<1> :r.l.i/ stands for :recipe-line-item/, for space efficiency
+<1> :rli/ stands for :recipe-line-item/, for space efficiency
 
 ==== Exploring possible solutions
 
@@ -102,10 +102,10 @@ We could change our data model so that a recipe contains directly sub-recipes, f
 [source,clojure]
 ----
 {:recipe/name "Pancake Batter" :recipe/id "1"
- :recipe/line-items [{:r.l.i/qty 4 :r.l.i/uom "piece"
-                      :r.l.i/ingredient {:ingredient/name "Eggs", :ingredient/id "101"}}
-                     {:r.l.i/qty 0.5 :r.l.i/uom "litre" ; <1>
-                      :r.l.i/sub-recipe [:recipe/id "2"]}]
+ :recipe/line-items [{:rli/qty 4 :rli/uom "piece"
+                      :rli/ingredient {:ingredient/name "Eggs", :ingredient/id "101"}}
+                     {:rli/qty 0.5 :rli/uom "litre" ; <1>
+                      :rli/sub-recipe [:recipe/id "2"]}]
  :recipe/sub-recipes [{:recipe/id "2" ; <2>
                        :recipe/name "Yogurt"
                        :recipe/line-items [...]}]}
