@@ -8,7 +8,7 @@ https://fulcro-community.github.io/fulcro-cookbook/[Read the Cookbook here] and 
 
 == Contributing
 
-See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for details.
+See link:CONTRIBUTING.adoc[CONTRIBUTING.adoc] for details, and <<Writing tips>> below for practical advice.
 
 == Writing tips
 
@@ -17,6 +17,8 @@ Use VS Code with asciidoctor plugin with link:https://github.com/asciidoctor/asc
 Images and wireframes - use e.g. https://excalidraw.com/
 
 Have a look at https://gist.github.com/dcode/0cfbf2699a1fe9b46ff04c41721dda74
+
+If you want to include custom CSS, JS, or something else in the generated page - have a look at https://docs.asciidoctor.org/asciidoc/latest/docinfo/[Asciidoc Docinfo files].
 
 === Excalidraw images
 

@@ -1,3 +1,5 @@
 = Contributing to the cookbook
 
 If you have an idea for what you would like to see in the cookbook, please open an issue or submit a pull request. You can also reach out to `@HolyJak` in the `#fulcro` channel of the Clojurians Slack.
+
+See the README for practical writing tips.
